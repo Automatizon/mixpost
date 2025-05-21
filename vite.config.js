@@ -6,31 +6,34 @@ import fs from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 
-export default defineConfig(({command, mode}) => {
-    // Load current .env-file
-    const env = loadEnv(mode, process.cwd(), '')
+export default defineConfig(({ command, mode }) => {
+    const env = loadEnv(mode, process.cwd(), '');
 
-    // Set the host based on APP_URL
-    let host = env.APP_URL !== undefined ? new URL(env.APP_URL).host : null;
-    let homeDir = homedir()
-    let serverConfig = {}
+    const isDev = mode === 'development';
 
-    if (host && homeDir) {
-        const certificatesPath = env.CERTIFICATES_PATH !== undefined ? env.CERTIFICATES_PATH : `.config/valet/Certificates/${host}`;
+    let serverConfig = {};
 
-        serverConfig = {
-            https: {
-                key: fs.readFileSync(
-                    resolve(homeDir, `${certificatesPath}.key`),
-                ),
-                cert: fs.readFileSync(
-                    resolve(homeDir, `${certificatesPath}.crt`),
-                ),
-            },
-            hmr: {
-                host
-            },
-            host
+    if (isDev) {
+        const appUrl = env.APP_URL;
+        const host = appUrl ? new URL(appUrl).host : 'localhost';
+        const homeDir = homedir();
+        const certificatesPath = env.CERTIFICATES_PATH !== undefined
+            ? env.CERTIFICATES_PATH
+            : `.config/valet/Certificates/${host}`;
+
+        try {
+            serverConfig = {
+                https: {
+                    key: fs.readFileSync(resolve(homeDir, `${certificatesPath}.key`)),
+                    cert: fs.readFileSync(resolve(homeDir, `${certificatesPath}.crt`)),
+                },
+                hmr: {
+                    host,
+                },
+                host,
+            };
+        } catch (err) {
+            console.warn(`⚠️ Could not load SSL certificates for host "${host}". Proceeding without HTTPS.`);
         }
     }
 
@@ -41,7 +44,7 @@ export default defineConfig(({command, mode}) => {
                 input: 'resources/js/app.js',
                 publicDirectory: 'resources/dist',
                 buildDirectory: 'vendor/mixpost',
-                refresh: true
+                refresh: true,
             }),
             vue({
                 template: {
@@ -51,14 +54,14 @@ export default defineConfig(({command, mode}) => {
                     },
                 },
             }),
-            DefineOptions()
+            DefineOptions(),
         ],
         resolve: {
             alias: {
                 '@css': '/resources/css',
-                '@img': '/resources/img'
+                '@img': '/resources/img',
             },
         },
-        server: serverConfig
-    }
+        server: serverConfig,
+    };
 });
